@@ -30,7 +30,6 @@ button[aria-pressed="true"]{background:var(--brass);color:#2a1e00;border-color:v
 button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 kbd{font:inherit;font-size:11px;line-height:1;margin-left:8px;padding:3px 6px;border:1px solid var(--ui-line);border-bottom-width:2px;border-radius:5px;color:var(--ui-dim);background:#0b241d;white-space:nowrap}
 button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0,0,.3);color:#2a1e00}
-#status{flex:1 1 260px;color:var(--ui-dim);font-size:13px;min-width:0;text-align:right}
 
 #scroll{flex:1;min-height:0;overflow:auto;background:var(--felt-2)}
 #scroll{scrollbar-width:none;-ms-overflow-style:none}
@@ -73,7 +72,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
 #table.panning,#table.panning .card{cursor:grabbing}
 
 @media (prefers-reduced-motion:reduce){.card,.flip{transition:none}}
-@media (max-width:640px){#status{text-align:left;flex-basis:100%}#bar h1{width:100%}}
+@media (max-width:640px){#bar h1{width:100%}}
 </style>
 </head>
 <body>
@@ -89,7 +88,6 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     <button id="bAll" type="button">Turn all face down</button>
     <button id="bReset" type="button">Reset</button>
   </div>
-  <div id="status" aria-live="polite"></div>
 </div>
 <div id="scroll"><div id="sizer"><div id="table"></div></div></div>
 
@@ -170,7 +168,6 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
 
   var table=document.getElementById('table');
   var sizer=document.getElementById('sizer');
-  var statusEl=document.getElementById('status');
   var slotEl=null,cards=[],els=[],DES=[],selected=null,zTop=1,snapOn=true,allDown=false,deckLbl=null;
   var scale=window.innerWidth<900?.55:.85,dealing=false,lastId=null;
 
@@ -332,14 +329,14 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     setTimeout(function(){
       table.classList.remove('dealing');
       els.forEach(function(el){el.style.transitionDelay=''});
-      dealing=false;save();updateStatus();
+      dealing=false;save();
     },list.length*45+900);
   }
   function reset(){
     if(dealing)return;
     select(null);lastId=null;allDown=false;bAll.textContent='Turn all face down';
     scrollEl.scrollTo(0,0);
-    if(cards.every(function(c){return c.inDeck})){deckLayout();build();save();updateStatus();return}
+    if(cards.every(function(c){return c.inDeck})){deckLayout();build();save();return}
     dealing=true;
     var order=shuffle(cards.map(function(c){return c.id}),Math.random);
     table.classList.add('dealing');
@@ -351,7 +348,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
       paint(c);
     });
     updateDeck();
-    setTimeout(function(){dealing=false;zTop=100;build();save();updateStatus()},52*18+900);
+    setTimeout(function(){dealing=false;zTop=100;build();save()},52*18+900);
   }
 
   function loadState(){
@@ -452,15 +449,9 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     var prev=selected;selected=id;
     if(prev!==null&&prev!==id)paint(cards[prev]);
     if(id!==null)paint(cards[id]);
-    updateStatus();
-  }
-  function updateStatus(){
-    if(selected===null){statusEl.textContent='';return}
-    var c=cards[selected];
-    statusEl.textContent=RANKS[c.r]+' of '+SUITS[c.s].n+', '+(c.up?'face up':'face down');
   }
   function front(c){c.z=++zTop;paint(c)}
-  function flip(c){c.up=!c.up;paint(c);save();updateStatus()}
+  function flip(c){c.up=!c.up;paint(c);save()}
   function rotate(c,d){c.rot+=d;clamp(c);paint(c);save()}
   function toggleSnap(){
     snapOn=!snapOn;document.getElementById('bSnap').setAttribute('aria-pressed',snapOn?'true':'false');
@@ -470,11 +461,10 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
   function setHover(id){if(selected!==id)select(id);if(id!==null)lastId=id}
   function hover(e){
     var el=e.target.closest?e.target.closest('.card'):null;
-    if(!el){if(selected!==null)select(null);else updateStatus();return}
+    if(!el){if(selected!==null)select(null);return}
     var c=cards[+el.dataset.id];
     if(c.inDeck){
       if(selected!==null)select(null);
-      statusEl.textContent='Deck \u00b7 '+deckCount()+' cards. Click to deal them all, or drag one off.';
       return;
     }
     setHover(c.id);
@@ -558,7 +548,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     else if(k==='r'){rotate(c,e.shiftKey?-90:90)}
   });
 
-  function need(){var c=target();if(!c){statusEl.textContent='Hover over a card first.';return null}return c}
+  function need(){var c=target();if(!c)return null;return c}
   document.getElementById('bFlip').onclick=function(){var c=need();if(c)flip(c)};
   document.getElementById('bRotL').onclick=function(){var c=need();if(c)rotate(c,-90)};
   document.getElementById('bRotR').onclick=function(){var c=need();if(c)rotate(c,90)};
@@ -568,7 +558,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     allDown=!allDown;
     cards.forEach(function(c){if(!c.inDeck){c.up=!allDown;paint(c)}});
     bAll.textContent=allDown?'Turn all face up':'Turn all face down';
-    save();updateStatus();
+    save();
   };
   document.getElementById('bReset').onclick=reset;
 
@@ -576,7 +566,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     CODES=decode();
     makeDesigns();
     if(!loadState())deckLayout();
-    applyZoom();build();updateStatus();
+    applyZoom();build();
   }
   var go=false;
   function once(){if(go)return;go=true;start()}
