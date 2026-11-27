@@ -139,7 +139,7 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     diamond:{W:232,H:252,cap:150,gx:116,gy:126,cells:[[116,42,1],[58,126,1],[174,126,1],[116,210,1]]},
     tee:    {W:168,H:284,cap:140,gx:84, gy:150,cells:[[42,58,0],[126,58,0],[84,158,1],[84,242,1]]},
     tee2:   {W:168,H:284,cap:140,gx:84, gy:134,cells:[[84,42,1],[84,126,1],[42,226,0],[126,226,0]]},
-    step:   {W:200,H:232,cap:125,gx:100,gy:98, cells:[[42,58,0],[142,42,1],[142,126,1],[42,174,0]]},
+    step:   {W:200,H:232,cap:125,gx:100,gy:98, cells:[[42,58,0,0],[142,42,1,0],[142,126,1,1],[42,174,0,1]]},
     mixbrick:{W:232,H:200,cap:150,gx:100,gy:100,cells:[[42,58,0],[126,58,0],[58,158,1],[174,158,1]]},
     zag:    {W:232,H:200,cap:140,gx:116,gy:84, cells:[[74,58,0],[174,42,1],[158,142,0],[58,158,1]]}
   };
@@ -194,20 +194,29 @@ button[aria-pressed="true"] kbd{background:rgba(0,0,0,.15);border-color:rgba(0,0
     return t?n/t:1;
   }
 
+  function readOrder(cells,byRow){
+    var list=cells.slice(),out=[];
+    if(byRow){list.sort(function(a,b){return a.row-b.row||a.cx-b.cx});return list}
+    list.sort(function(a,b){return a.cy-b.cy});
+    var rows=[],cur=null;
+    list.forEach(function(c){if(cur&&c.cy-cur.y0<=20)cur.list.push(c);else{cur={y0:c.cy,list:[c]};rows.push(cur)}});
+    rows.forEach(function(rw){rw.list.sort(function(a,b){return a.cx-b.cx});out=out.concat(rw.list)});
+    return out;
+  }
+
   function makeDesigns(){
     DES=[];
     for(var r=0;r<13;r++){
       var rnd=rng(1000+r*77);
       var sh=SHAPES[LEVELS.shape[r]],mir=LEVELS.mirror[r];
-      var cells=sh.cells.map(function(c){return{cx:mir?sh.W-c[0]:c[0],cy:c[1],o:c[2]}});
-      cells.sort(function(a,b){return a.cy-b.cy});
-      var rows=[],cur=null;
-      cells.forEach(function(c){if(cur&&c.cy-cur.y0<=20)cur.list.push(c);else{cur={y0:c.cy,list:[c]};rows.push(cur)}});
-      cells=[];
-      rows.forEach(function(rw){rw.list.sort(function(a,b){return a.cx-b.cx});cells=cells.concat(rw.list)});
-      var perm=shuffle([0,1,2,3],rnd);
-      var qs=shuffle([0,1,2,3],rnd),tw={};
-      for(var i=0;i<LEVELS.twist[r];i++)tw[qs[i]]=true;
+      var raw=sh.cells.map(function(c){return{cx:mir?sh.W-c[0]:c[0],cy:c[1],o:c[2],row:c[3]}});
+      var legacy=readOrder(raw,false);
+      var cells=readOrder(raw,raw.every(function(c){return c.row!==undefined}));
+      var perm0=shuffle([0,1,2,3],rnd);
+      var qs=shuffle([0,1,2,3],rnd),tw0={};
+      for(var i=0;i<LEVELS.twist[r];i++)tw0[qs[i]]=true;
+      var perm=[],tw={};
+      cells.forEach(function(c,k){var j=legacy.indexOf(c);perm[k]=perm0[j];if(tw0[j])tw[k]=true});
       cells.forEach(function(c,k){c.rot=((c.o?90:0)+(LEVELS.flip[r]?180:0)+(tw[k]?180:0))%360});
 
       var dec='',alpha=Math.min(.85,.5+r*.03);
